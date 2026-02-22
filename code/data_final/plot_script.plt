@@ -1,0 +1,17 @@
+ set terminal pngcairo enhanced font 'arial,10' size 1200, 800
+ set output 'data_final/results_at_t=0.20s.png'
+ set title 'Results t=0.20s'
+ set multiplot layout 2,2 title 'Variables at t=0.20s'
+ set xlabel 'x'
+ set ylabel 'Density (rho)'
+ plot 'data_final/results_at_t=0.20s.dat' using 1:2 with lines lw 2 title 'Density (rho)'
+ set xlabel 'x'
+ set ylabel 'Velocity (u)'
+ plot 'data_final/results_at_t=0.20s.dat' using 1:3 with lines lw 2 title 'Velocity (u)'
+ set xlabel 'x'
+ set ylabel 'Pressure (P)'
+ plot 'data_final/results_at_t=0.20s.dat' using 1:4 with lines lw 2 title 'Pressure (P)'
+ set xlabel 'x'
+ set ylabel 'Energy (E)'
+ plot 'data_final/results_at_t=0.20s.dat' using 1:5 with lines lw 2 title 'Energy (E)'
+ unset multiplot
