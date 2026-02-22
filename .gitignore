@@ -1,0 +1,11 @@
+# Ignore compiled Fortran files
+code/*.o
+code/*.mod
+
+# Ignore output data and movies
+code/data_final/
+code/film/
+
+# Ignore OS specific files
+.DS_Store
+Thumbs.db
