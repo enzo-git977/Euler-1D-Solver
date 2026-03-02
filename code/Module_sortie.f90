@@ -60,9 +60,9 @@ subroutine write_solution_initial_time(N,dx,gamma,w)
 	! ecriture dans fichier pour plot
 	open(11, file="data_final/results_at_0.00s.dat", status="unknown")
 	do i = 1, N-1
-		write(11, *) (i-0.5d0)*dx, rho(i), Ma(i), P(i), Temp(i), E(i), s(i)
+		write(11, *) (i-0.5d0)*dx, rho(i), Ma(i), P(i), Temp(i), u(i), s(i)
 	end do
-	write(11,  *) 1.0d0, rho(N), Ma(N), P(N), Temp(N), E(N), s(N)
+	write(11,  *) 1.0d0, rho(N), Ma(N), P(N), Temp(N), u(N), s(N)
     close(11)
 	
 	! lance gnuplot
@@ -83,18 +83,19 @@ subroutine save_results(N,Save_choice,dx,Tf,rho,u,P,E,Ma,s,Temp)
   double precision, dimension(:),intent(in)     :: Ma, s, Temp					   	! Caractéristiques physique du fluide
   double precision,intent(in) 					:: dx,Tf							! parametres d'entrée de la subroutine
   character(len=*),intent(in) 				    :: Save_choice						! Pick either data_final or film
+  character(len=10) 							:: time_str							! char for time
   character(len=50) 							:: filename							! name of the file
   integer 			 							:: i,ierr 			 				! entier pour calcul de boucles
   
-	! Choose filename precision depending on Save_choice
-    if (trim(Save_choice) == 'data_final') then
-		write(filename,'(A, F4.2, A)') trim(Save_choice)//'/results_at_t=', Tf, 's.dat' ! Create filename with the time value included (rounded to 2 decimal places)
-    else if (trim(Save_choice) == 'film') then
-		write(filename,'(A, F0.2, A)') trim(Save_choice)//'/results_at_t=', Tf, 's.dat' ! Create filename with the time value included (rounded to 5 decimal places)
-    else
-        print *, "Unknown Save_choice: ", trim(Save_choice)
-        stop
-    end if
+	
+	! Convert time into character
+	write(time_str, '(F5.3)') Tf
+
+	! Construct filename without spaces
+	filename = trim(Save_choice) // '/results_at_t=' // trim(adjustl(time_str)) // 's.dat'
+	
+	! Verification 
+	print *, "Save file : ", trim(filename)
     
     ! Open the file with the generated filename
     open(unit=10, file=trim(filename), status="unknown", form="formatted", iostat=ierr)
@@ -105,9 +106,9 @@ subroutine save_results(N,Save_choice,dx,Tf,rho,u,P,E,Ma,s,Temp)
 	
 	! writing
 	do i = 1, N-1
-		write(10, *) (i-0.5d0)*dx, rho(i), Ma(i), P(i), Temp(i), E(i), s(i)
+		write(10, *) (i-0.5d0)*dx, rho(i), Ma(i), P(i), Temp(i), u(i), s(i)
 	end do
-	write(10, *) 1.0d0, rho(N), Ma(N), P(N), Temp(N), E(N), s(N)
+	write(10, *) 1.0d0, rho(N), Ma(N), P(N), Temp(N), u(N), s(N)
 	close(10)
   
   end subroutine save_results
@@ -128,53 +129,73 @@ subroutine create_gnuplot_script(Tf,Save_choice)
   character(len=*),intent(in) :: Save_choice		 ! Pick either data_final or film
   character(len=100) 		  :: output_png		     ! Name of output
 	
-  write(output_png,'(A,F4.2,A)') trim(Save_choice)//'/results_at_t=', Tf, 's.png' ! maybe use G0 instaead of F6.2
+	! name of the script
+    gnuplot_file = trim(Save_choice) // '/plotdata_exact.plt'
 
-  ! Gnuplot script file name
-  gnuplot_file = trim(Save_choice)//'/plot_script.plt'
+	! open file
+    open(newunit=iunit, file=trim(gnuplot_file), status="replace")
 
-  ! Create filename with the time value included (rounded to 2 decimal places)
-  write(filename,'(A, F4.2, A)') trim(Save_choice)//'/results_at_t=', Tf, 's.dat'
+    ! --- Configuration Terminal et Output ---
+    write(iunit, '(A)') "set terminal pngcairo enhanced font 'arial,10' size 1200, 800"
+    write(iunit, '(A,A,A)') "set output '", trim(Save_choice), "/Solution_Exact_et_approche.png'"
+    write(iunit, *) ""
 
-  ! Create title for the plots
-  write(title_plot, '("t=", F4.2, "s")') Tf
+    ! --- Définition du temps final pour le sprintf ---
+    write(iunit, '(A,F8.4)') "t_final = ", Tf
+    write(iunit, '(A,A,A)') "filename_final = sprintf('", trim(Save_choice), "/results_at_t=%.3fs.dat', t_final)"
+    write(iunit, *) ""
 
-  ! Open the Gnuplot script file for writing
-  open(newunit=iunit, file=gnuplot_file, status="replace")
+    ! --- Multiplot ---
+    write(iunit, '(A)') 'set multiplot layout 3,2 title "Exact vs Approximate Riemann solver"'
+    write(iunit, *) ""
 
-  ! Write Gnuplot commands to the file for multiplot layout
-  write(iunit, *) "set terminal pngcairo enhanced font 'arial,10' size 1200, 800"
-  write(iunit, *) "set output '" // trim(output_png) // "'"
-  write(iunit, *) "set title 'Results ", trim(title_plot), "'"
-  write(iunit, *) "set multiplot layout 2,2 title 'Variables at " // trim(title_plot) // "'"
+    ! --- 1. Density ---
+    write(iunit, '(A)') "set xlabel 'x (m)'"
+    write(iunit, '(A)') "set ylabel 'Density '"
+    write(iunit, '(A)') "set title 'Density Comparison'"
+    write(iunit, '(A)') "plot 'data_final/Exact_Sod.dat' using 1:2 with lines lw 2 title 'Exact', \"
+    write(iunit, '(A)') "     filename_final using 1:2 with lines lw 2 title sprintf('t=%.3fs', t_final)"
 
-  ! Plot Density (rho)
-  write(iunit, *) "set xlabel 'x'"
-  write(iunit, *) "set ylabel 'Density (rho)'"
-  write(iunit, *) "plot '", trim(filename), "' using 1:2 with lines lw 2 title 'Density (rho)'"
+    ! --- 2. Mach ---
+    write(iunit, '(A)') "set xlabel 'x (m)'"
+    write(iunit, '(A)') "set ylabel 'Mach number (-)'"
+    write(iunit, '(A)') "set title 'Mach Comparison'"
+    write(iunit, '(A)') "plot 'data_final/Exact_Sod.dat' using 1:3 with lines lw 2 title 'Exact', \"
+    write(iunit, '(A)') "     filename_final using 1:3 with lines lw 2 title sprintf('t=%.3fs', t_final)"
 
-  ! Plot Velocity (u)
-  write(iunit, *) "set xlabel 'x'"
-  write(iunit, *) "set ylabel 'Velocity (u)'"
-  write(iunit, *) "plot '", trim(filename), "' using 1:3 with lines lw 2 title 'Velocity (u)'"
+    ! --- 3. Pressure ---
+    write(iunit, '(A)') "set xlabel 'x (m)'"
+    write(iunit, '(A)') "set ylabel 'Pressure '"
+    write(iunit, '(A)') "set title 'Pressure Comparison'"
+    write(iunit, '(A)') "plot 'data_final/Exact_Sod.dat' using 1:4 with lines lw 2 title 'Exact', \"
+    write(iunit, '(A)') "     filename_final using 1:4 with lines lw 2 title sprintf('t=%.3fs', t_final)"
 
-  ! Plot Pressure (P)
-  write(iunit, *) "set xlabel 'x'"
-  write(iunit, *) "set ylabel 'Pressure (P)'"
-  write(iunit, *) "plot '", trim(filename), "' using 1:4 with lines lw 2 title 'Pressure (P)'"
+    ! --- 4. Temperature ---
+    write(iunit, '(A)') "set xlabel 'x (m)'"
+    write(iunit, '(A)') "set ylabel 'Temperature (-)'"
+    write(iunit, '(A)') "set title 'T adimensionne Comparison'"
+    write(iunit, '(A)') "plot 'data_final/Exact_Sod.dat' using 1:5 with lines lw 2 title 'Exact', \"
+    write(iunit, '(A)') "     filename_final using 1:5 with lines lw 2 title sprintf('t=%.3fs', t_final)"
 
-  ! Plot Energy (E)
-  write(iunit, *) "set xlabel 'x'"
-  write(iunit, *) "set ylabel 'Energy (E)'"
-  write(iunit, *) "plot '", trim(filename), "' using 1:5 with lines lw 2 title 'Energy (E)'"
+    ! --- 5. Velocity ---
+    write(iunit, '(A)') "set xlabel 'x (m)'"
+    write(iunit, '(A)') "set ylabel 'velocity '"
+    write(iunit, '(A)') "set title 'velocity Comparison'"
+    write(iunit, '(A)') "plot 'data_final/Exact_Sod.dat' using 1:6 with lines lw 2 title 'Exact', \"
+    write(iunit, '(A)') "     filename_final using 1:6 with lines lw 2 title sprintf('t=%.3fs', t_final)"
 
-  ! End multiplot mode
-  write(iunit, *) "unset multiplot"
+    ! --- 6. Entropy ---
+    write(iunit, '(A)') "set xlabel 'x (m)'"
+    write(iunit, '(A)') "set ylabel 's '"
+    write(iunit, '(A)') "set title 'Entropy Comparison'"
+    write(iunit, '(A)') "plot 'data_final/Exact_Sod.dat' using 1:7 with lines lw 2 title 'Exact', \"
+    write(iunit, '(A)') "     filename_final using 1:7 with lines lw 2 title sprintf('t=%.3fs', t_final)"
 
-  ! Close the Gnuplot script file
-  close(iunit)
+    write(iunit, '(A)') "unset multiplot"
 
-  print *, "Gnuplot script 'plot_script.plt' has been generated"
+    close(iunit)
+
+  print *, "Gnuplot script 'plotdata_exact.plt' has been generated"
 
 end subroutine create_gnuplot_script
 

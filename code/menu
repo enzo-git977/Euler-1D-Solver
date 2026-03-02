@@ -16,7 +16,7 @@ MENU DU CODE EULER1D
 
 --SIMULATION--------------------------------------------------------------------
 ! Nombre de points de grille N 					    [-]	  INDICATION : choisir nombre impair comme ça le noeud central est en L/2	
-201	
+401	
 
 ! Longueur du domaine 		 L				        [m]		       		
 1.0D0 
@@ -25,19 +25,25 @@ MENU DU CODE EULER1D
 1.4D0	
 
 ! Condition CFL	     		 cfl	 				[-]   INDICATION : keep cfl <= 0.5 pour avoid oscillations
-0.1D0	
+0.5D0	
 
 ! Temps final 				 Tf	    				[s]	
-2.0D-1	
+0.012d0	
 
-! Cdts initiales     1 : Sod subsonique, 2 : Sod Superso, 3 : vide,      4 : glissement, 5 : choc à Mach 3 	
-1	
+! Cdts initiales     1 : Sod subsonique, 2 : Sod Superso, 3 : vide, 4 : glissement, 5 : choc à Mach 3, 6 : Blast wave (mettre t=0.012), 7: Collision de chocs (t=0.035)	
+6	
 
 ! BOUNDARY Cdts    1 : Reflective wall, 2 : Transmissive wall 	
 2	
 
+! Choix du schema pour flux    1 : Roe, 2 : HLL-Davis, 3 : HLL avec moyenne de Roe, 4 : HLLE (Einfeldt), 5 : HLLC-ANRS (Toro), 6 : HLLC simple
+5	
+
 ! Choix ordre de precision spatial      1 : ordre 1,     2 : reconstruction MUSCL (ordre 2 ou plus)
-2	
+2
+
+! Choix time integration           1 : Euler ordre 1, 2  : RK2 (ordre2)
+2
 
 ! Correction entropique de Harten 0 : sans correction, 1 : correction entropique, 2 : correction complete
 0
@@ -46,13 +52,13 @@ MENU DU CODE EULER1D
 1.0d-1
 
 ! Choix du parametre phi (POUR ORDRE DE PRECISION=2) INDICATION : -1<=phi<=1 valeurs speciales : phi = -1 ordre 2 decentre; phi=1 : ordre 2 centre, phi = 1/3 : ordre 3 mais METTRE 3 pour ordre 3 car lecture de 1/3 difficile                 
-3
+-1
 
 ! Choix du parametre de compression b (POUR ORDRE DE PRECISION=2) INDICATION : 1<=b<=(3-phi)/(1-phi)                     
 1.1d0
 	
 ! Choix du limiteur (POUR ORDRE DE PRECISION=2)  1 : Minmod,         2 : VanLeer,     3 : VanAlbada, 4 : Superbee,   5 : Chakravarthy                      
-3	
+5	
 
 ! (POUR LIMITER=5), veuillez préciser le coeff beta  INDICATION : 1 <= beta <= 2
 1 

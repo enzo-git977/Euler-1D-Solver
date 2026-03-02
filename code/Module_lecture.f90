@@ -6,20 +6,17 @@ contains
 ! METHODES
 ! ----------------------------------------------------------------------
 
-subroutine read_parameters(nfich,N,L,gamma,cfl,Tf,i_init,i_ord,i_BC,i_cor,delta_star,i_fct,beta,b,phi)
-
+subroutine read_parameters(nfich,N,L,gamma,cfl,Tf,delta_star,beta,b,phi)
 !=====================================================================
 !  Fonction : Lecture du fichier menu pour les parametres de calcul
 !=====================================================================
+! Parametres globaux
+use Module_parametres
+
 ! Déclarations
   implicit none
   integer,          intent(in)   :: nfich			   ! Numero du fichier pour ouverture
   integer,          intent(out)  :: N              	   ! Nombre de points de grille 
-  integer,          intent(out)	 :: i_init             ! choix de la cdt initiale voulue 
-  integer,          intent(out)	 :: i_ord              ! choix de l'ordre de precision spatial
-  integer,          intent(out)  :: i_fct              ! choix du limiteur 
-  integer,          intent(out)  :: i_BC			   ! Define what bc to use
-  integer,          intent(out)	 :: i_cor              ! Activation de la correction
   double precision, intent(out)	 :: delta_star		   ! Coefficient pour correction entropique de Harten
   double precision, intent(out)	 :: L                  ! Longueur du domaine en metre
   double precision, intent(out)	 :: gamma   		   ! Constante adiabatique
@@ -48,7 +45,11 @@ read(nfich,*) i_init
 read(nfich,'(/)')
 read(nfich,*) i_BC
 read(nfich,'(/)')
+read(nfich,*) i_sc
+read(nfich,'(/)')
 read(nfich,*) i_ord
+read(nfich,'(/)')
+read(nfich,*) i_t
 read(nfich,'(/)')
 read(nfich,*) i_cor
 read(nfich,'(/)')
@@ -74,19 +75,17 @@ end subroutine read_parameters
 ! -----------------------------
 
 
-subroutine display_parameters(N,L,gamma,cfl,Tf,i_init,i_ord,i_BC,i_cor,delta_star,i_fct,beta,b,phi)
+subroutine display_parameters(N,L,gamma,cfl,Tf,delta_star,beta,b,phi)
 
 !=====================================================================
 !  Fonction : Affichage des parametres de calcul selectionnes
 !=====================================================================
+! Parametres globaux
+use Module_parametres
+
 ! Déclarations
   implicit none
   integer,          intent(in)   :: N              	   ! Nombre de points de grille 
-  integer,          intent(in)	 :: i_init             ! choix de la cdt initiale voulue 
-  integer,          intent(in)	 :: i_ord              ! choix de l'ordre de precision spatial
-  integer,          intent(in)   :: i_fct              ! choix du limiteur 
-  integer,          intent(in)   :: i_BC			   ! Define what bc to use
-  integer,          intent(in)	 :: i_cor              ! Activation de la correction
   double precision, intent(in)	 :: delta_star		   ! Coefficient pour correction entropique de Harten
   double precision, intent(in)	 :: L                  ! Longueur du domaine en metre
   double precision, intent(in)	 :: gamma   		   ! Constante adiabatique
@@ -116,6 +115,10 @@ select case(i_init)
 		write(*,*) 'Cdts initiales : Ligne de glissement stationnaire'
 	case(5)
 		write(*,*) 'Cdts initiales : Choc stationnaire à Mach 3 '
+	case(6)
+		write(*,*) 'Cdts initiales : Blast wave (forte pression) '
+	case(7)
+		write(*,*) 'Cdts initiales : Collision de chocs '
 end select
 
 select case(i_BC)
@@ -123,6 +126,22 @@ select case(i_BC)
 	    write(*,*) 'BC : Reflective wall'
 	case(2)
 		write(*,*) 'BC : Transmissive wall'
+end select
+
+write(*,*)'Choice of the flux scheme :'
+select case(i_sc)
+	case(1)
+		write(*,*) 'Roe'
+	case(2)
+	    write(*,*) 'HLL (Davis estimation)'
+	case(3)
+		write(*,*) 'HLL (Mean estimation)'
+	case(4)
+		write(*,*) 'HLLE (Einfeldt estimation)'
+	case(5)
+		write(*,*) 'HLLC-ANRS'
+	case(6)
+		write(*,*) 'HLLC robuste'
 end select
 
 
@@ -150,6 +169,15 @@ select case(i_ord)
 				write(*,*) 'Choix du limiter : Chakravarthy'
 				write(*, '(A, F8.3)')  'beta     = ', beta
 		end select
+end select
+
+select case(i_t)
+	case(1)
+	    write(*,*) 'Time integration : Euler ordre 1'
+		write(*, *)
+	case(2)
+		write(*,*) 'Time integration : RK2'
+		write(*, *)
 end select
 
 select case(i_cor)

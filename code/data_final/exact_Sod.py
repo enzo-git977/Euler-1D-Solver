@@ -227,35 +227,43 @@ def riesolv(rol,ul,pl,ror,ur,pr,xl,xr,mprof,gamma,timeout,solution):
         temperature = ps/ros/g9
         mach = us/cs
         entropie = pression/density**gamma
-        solution.append((xpos,density,mach, pression,temperature,E_massique,entropie))
+        solution.append((xpos,density,mach, pression,temperature,velocity,entropie))
     return solution
 
 	
 # --- CONFIGURATION DU CAS ---
-cas = 1
+time = 0.20 # par defaut
+cas = 6
 gamma = 1.4
 R = 287.
 xdeb = 0.0
 xfin = 1.0
-npt = 200
-time = 0.20
+npt = 201
 
 # --- SELECTION DES CONDITIONS INITIALES ---
-if cas == 1:
+if cas == 1: # Sod subsonique
     rhoL, uL, pL = 1.0, 0.0, 1.0
     rhoR, uR, pR = 0.125, 0.0, 0.1
-elif cas == 2:
+elif cas == 2: # Sod supersonique
     rhoL, uL, pL = 1.0, 0.75, 1.0
     rhoR, uR, pR = 0.125, 0.0, 0.1
-elif cas == 3:
+elif cas == 3: # Apparition de vide (double detente)
     rhoL, uL, pL = 1.0, -2.0, 0.4
     rhoR, uR, pR = 1.0, 2.0, 0.4
-elif cas == 4:
+elif cas == 4: # Ligne de glissement stationnaire
     rhoL, uL, pL = 10.0, 0.0, 10.0
     rhoR, uR, pR = 0.1, 0.0, 10.0
-elif cas == 5:
+elif cas == 5: # Choc stationnaire 
     rhoL, uL, pL = 1.0, 3.5496478, 1.0
     rhoR, uR, pR = 3.85714285, 0.920279072, 10.33333333
+elif cas == 6: # # Blast Wave (Forte pression)
+    rhoL, uL, pL = 1.0, 0.0, 1000.0
+    rhoR, uR, pR = 1.0, 0.0, 0.01
+    time = 0.012
+elif cas == 7: # Collision de chocs 
+    rhoL, uL, pL = 5.99924, 19.5975, 460.894
+    rhoR, uR, pR = 5.99242, -6.19633, 46.0950
+    time = 0.035
 else:
     print("Cas non defini")
     exit()
@@ -263,6 +271,7 @@ else:
 print(f"Calcul de la solution exacte - Cas {cas}")
 print(f"Etat Gauche : {rhoL}, {uL}, {pL}")
 print(f"Etat Droit  : {rhoR}, {uR}, {pR}")
+print(f"Temps final : {time}")
 
 # --- CALCUL DE LA SOLUTION ---
 cl = np.sqrt(gamma * pL / rhoL)
@@ -277,7 +286,7 @@ riesolv(rhoL, uL, pL, rhoR, uR, pR, xdeb, xfin, npt, gamma, time, sol_list)
 result = np.asarray(sol_list)
 
 # --- SAUVEGARDE ---
-#header = "x density mach pressure temperature energy entropy"
+#header = "x density mach pressure temperature velocity entropy"
 np.savetxt("data_final/Exact_Sod.dat", result, fmt='%.8e')
 
 print("Fichier data_final/Exact_Sod.dat enregistre avec succes.")

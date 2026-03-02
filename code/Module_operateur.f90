@@ -10,38 +10,31 @@ contains
 ! METHODES
 ! ----------------------------------------------------------------------
 
-subroutine Solve_Eqn_Euler_MUSCL(N,i_init,i_fct,i_ord,i_cor,i_BC,delta_star,beta,L,dx,b,phi,gamma,CFL,Tf,rho,u,P,E)
+subroutine Solve_Eqn_Euler_MUSCL(N,delta_star,beta,L,dx,b,phi,gamma,CFL,Tf,rho,u,P,E)
 ! ======================================================================================= 
 ! Subroutine pour resoudre le systeme d'Euler fluide parfait 1D compressible
 ! avec MUSCL
 ! ======================================================================================= 
+! Parametres globaux 
+use Module_parametres, only : i_t
+
 ! Déclarations
   implicit none
-  integer, intent(in) 			 			   	:: N         				! Nombre de points de grille
-  integer, intent(in) 			 			   	:: i_init        		    ! Choix de la condition initiale voulue
-  integer, intent(in) 			 			   	:: i_ord        		    ! Choix de l'ordre de precision spatial
-  integer, intent(in) 			 			   	:: i_fct        		    ! Define what limiter_function to use
-  integer, intent(in) 			 			   	:: i_BC					    ! Define what bc to use
-  double precision, intent(in) 	 			   	:: L         				! Longueur du domaine
-  double precision, intent(in) 	 			   	:: gamma      				! Constante adiabatique
-  double precision, intent(in) 				   	:: CFL        				! Condition CFL
-  double precision, intent(in) 	 			   	:: Tf   					! Temps final
-  double precision, intent(in) 	 			   	:: beta  					! Coefficient pour limiter Chakravarthy
-  double precision, intent(in)	 			   	:: dx						! pas de discrétisation spatiale
-  integer,intent(in)							:: i_cor					! Activation de la correction
-  double precision,intent(in)					:: delta_star				! Coefficient pour correction entropique de Harten
-  double precision,intent(in)					:: b,phi				    ! Parametre de compression, Parametre ordre de reconstruction
-  double precision, dimension(:),intent(inout) 	:: rho, u, P, E		    	! Caractéristiques physique du fluide
-  double precision, dimension(:),allocatable	:: x_i		    			! Maillage
-  double precision, dimension(:,:),allocatable 	:: w,w_L,w_R				! Vecteur w au temps t
-  double precision, dimension(:,:),allocatable  :: w_new					! Vecteur w au temps t{n+1}
-  double precision 				     		   	:: rho_L, u_L, P_L			! Cdt initiales a gauche
-  double precision 					 		   	:: rho_R, u_R, p_R,dt,t		! Cdt initiales a droite
-  double precision, dimension(:,:),allocatable 	:: F_L,F_R					! Vecteur Flux
-  double precision, dimension(:,:),allocatable 	:: F_num					! Vecteur Flux numériques 
-  double precision, dimension(:),allocatable 	:: Ma,s,Temp				! Mach number, entropy and Temperature 
-  integer,parameter								:: N_sauv=10				! Nombre de sauvegardes
-  integer 			 							:: sauv	    				! Compteur
+  integer, intent(in) 			 			   	:: N         				       	    ! Nombre de points de grille
+  double precision, intent(in) 	 			   	:: L,gamma,CFL,Tf,beta,dx,delta_star    ! Doubles from the main
+  double precision,intent(in)					:: b,phi				    			! Parametre de compression, Parametre ordre de reconstruction
+  double precision, dimension(:),intent(inout) 	:: rho, u, P, E		    				! Caractéristiques physique du fluide
+  double precision, dimension(:),allocatable	:: x_i		    						! Maillage
+  double precision, dimension(:,:),allocatable 	:: w,w_L,w_R							! Vecteur w au temps t
+  double precision, dimension(:,:),allocatable  :: w_mid								! Vecteur w au temps t{n+1/2}
+  double precision, dimension(:,:),allocatable  :: w_new								! Vecteur w au temps t{n+1}
+  double precision 				     		   	:: rho_L, u_L, P_L						! Cdt initiales a gauche
+  double precision 					 		   	:: rho_R, u_R, p_R,dt,t					! Cdt initiales a droite
+  double precision, dimension(:,:),allocatable 	:: F_L,F_R								! Vecteur Flux
+  double precision, dimension(:,:),allocatable 	:: F_num								! Vecteur Flux numériques 
+  double precision, dimension(:),allocatable 	:: Ma,s,Temp							! Mach number, entropy and Temperature 
+  integer,parameter								:: N_sauv=10							! Nombre de sauvegardes
+  integer 			 							:: sauv	    							! Compteur
   
   ! Fin des declarations
  !=======================================================================================
@@ -53,8 +46,14 @@ subroutine Solve_Eqn_Euler_MUSCL(N,i_init,i_fct,i_ord,i_cor,i_BC,delta_star,beta
 	allocate(x_i(N))					   ! Maillage 	
 	allocate(Ma(N), s(N), Temp(N))		   ! Variables thermophysiques Mach number, entropy, temperature
 	
+	! Pour RK2
+	if(i_t == 2) then
+		allocate(w_mid(3,-1:N+2))
+		w_mid = 0.0d0 ! initialisation du vecteur
+	endif
+	
 	! Conditions initiales 
-	call Conditions_initiales(i_init,gamma,rho_L,u_L,P_L,rho_R,u_R,P_R)
+	call Conditions_initiales(gamma,rho_L,u_L,P_L,rho_R,u_R,P_R)
 	
 	t = 0.0D0 ! temps de la simulation [s]
 	sauv = 0    ! Compteur pour sauvegarde
@@ -78,7 +77,7 @@ subroutine Solve_Eqn_Euler_MUSCL(N,i_init,i_fct,i_ord,i_cor,i_BC,delta_star,beta
 		print*,'t = ', t, ' 	| dt =', dt
 		
 		! Interpolation (ordre 1 ou reconstruction MUSCL ordre 2 ou plus)
-		call Interp(N,i_fct,i_ord,beta,b,phi,w,w_L,w_R)
+		call Interp(N,beta,b,phi,w,w_L,w_R)
 		
 		! Calcul des flux a gauche pour chaque cellule
 		call Calcul_Flux(N,gamma,w_L,F_L) 
@@ -86,14 +85,14 @@ subroutine Solve_Eqn_Euler_MUSCL(N,i_init,i_fct,i_ord,i_cor,i_BC,delta_star,beta
 		! Calcul des flux a droite pour chaque cellule
 		call Calcul_Flux(N,gamma,w_R,F_R) 
 		
-		! Calcul des Flux numérique aux interfaces avec le schéma de Roe
-		call roe_flux(N,i_cor,delta_star, gamma,w_L,w_R,F_L,F_R,F_num)
+		! Calcul des Flux numérique aux interfaces avec un schéma numerique (1 : Roe, 2:  HLL, 3 : HLLC)
+		call Num_flux(N,delta_star, gamma,w_L,w_R,F_L,F_R,F_num)
 		
 		! Calcul des variables au temps t{n+1}
-		call Update_variables(N,dx,dt,w ,F_num,w_new)
+		call Update_variables(N,dx,dt,gamma,beta,b,phi,delta_star,w,w_L,w_R,w_mid,F_L,F_R,F_num,w_new)
 		
 		! Appliquer les conditions aux bords
-		call Boundary_conditions(N,gamma,i_BC,w_new)
+		call Boundary_conditions(N,gamma,w_new)
 		
 		! Update du vecteur conservatif
 		w = w_new
@@ -121,6 +120,10 @@ subroutine Solve_Eqn_Euler_MUSCL(N,i_init,i_fct,i_ord,i_cor,i_BC,delta_star,beta
 	deallocate(F_num)
 	deallocate(x_i)
 	deallocate(Ma,s,Temp)
+	! Pour RK2
+	if(i_t == 2) then
+		deallocate(w_mid)
+	endif
     
 end subroutine Solve_Eqn_Euler_MUSCL
 
@@ -191,52 +194,108 @@ end subroutine Solve_Eqn_Euler_MUSCL
  
  ! -----------------------------
  
- subroutine Update_variables(N,dx,dt,w ,F_num,w_new)
+ subroutine Update_variables(N,dx,dt,gamma,beta,b,phi,delta_star,w,w_L,w_R,w_mid,F_L,F_R,F_num,w_new)
 ! ================================================
 ! Calcul des variables au prochain temps 
 ! discrétisation avec Euler explicite ordre 1
 ! ================================================
+  use Module_parametres, only : i_t
   implicit none
-  integer,intent(in) 							   :: N			! grille de points
-  double precision,intent(in) 					   :: dx,dt		! paramètres d'entrées de la subroutine
-  double precision, dimension(:,-1:),intent(in)    :: w 		! Composantes du vecteur w au temps t{n}
-  double precision, dimension(:,:),intent(in)      :: F_num		! Flux numériques
-  integer 			 							   :: i 		! entier pour calcul de boucles
-  double precision, dimension(:,-1:),intent(inout) :: w_new 	! Composantes du vecteur w au temps t{n+1}
+  integer,intent(in) 							   :: N	 								 ! grille de points
+  double precision,intent(in) 					   :: dx,dt,gamma,beta,b,phi,delta_star	 ! paramètres d'entrées de la subroutine
+  double precision, dimension(:,-1:),intent(in)    :: w 								 ! Composantes du vecteur w au temps t{n}
+  double precision, dimension(:,:),intent(inout)   :: F_num								 ! Flux numériques
+  double precision, dimension(:,-1:),intent(inout) :: w_mid								 ! Vecteur w au temps t{n+1/2}
+  double precision, dimension(:,:),intent(inout)   :: w_L,w_R   						 ! Interpolation du vecteur w
+  double precision, dimension(:,:),intent(inout)   :: F_L,F_R   						 ! Composantes du vecteur Flux
+  integer 			 							   :: i 								 ! entier pour calcul de boucles
+  double precision, dimension(:,-1:),intent(inout) :: w_new 							 ! Composantes du vecteur w au temps t{n+1}
 ! =========================================================================================================================
-! Fin des declarations 	
+! Fin des declarations
 
-  ! Calcul des états au temps {t+1} (que les mailles internes)
-	do i = 1, N 					
-		w_new(:,i) = w(:,i) - (dt / dx) * (F_num(:,i+1) - F_num(:,i))
-	end do
+! Validate input
+  if (i_t < 1 .or. i_t > 2) then
+     print *, "Error: Invalid i_t value. Must be between 1 and 2."
+     stop
+  end if
+
+  select case(i_t)
+	case(1)
+		! Euler ordre 1 
+		! Calcul des états au temps {t+1} (que les mailles internes)
+		do i = 1, N 					
+			w_new(:,i) = w(:,i) - (dt / dx) * (F_num(:,i+1) - F_num(:,i))
+		end do
+		
+	case(2)
+		! RK2
+		! Calcul des états au temps {tn+1/2} (que les mailles internes)
+		do i = 1, N 					
+			w_mid(:,i) = w(:,i) - (dt / (2.0d0*dx)) * (F_num(:,i+1) - F_num(:,i))
+		end do
+		
+		! Appliquer les conditions aux bords
+		call Boundary_conditions(N,gamma,w_mid)
+		
+		! Interpolation (ordre 1 ou reconstruction MUSCL ordre 2 ou plus)
+		call Interp(N,beta,b,phi,w_mid,w_L,w_R)
+			
+		! Calcul des flux a gauche pour chaque cellule
+		call Calcul_Flux(N,gamma,w_L,F_L) 
+			
+		! Calcul des flux a droite pour chaque cellule
+		call Calcul_Flux(N,gamma,w_R,F_R) 
+			
+		! Calcul des Flux numérique aux interfaces avec un schéma numerique (1 : Roe, 2:  HLL, 3 : HLLC)
+		call Num_flux(N,delta_star, gamma,w_L,w_R,F_L,F_R,F_num)
+		
+		! Calcul des états au temps {t+1} (que les mailles internes)
+		do i = 1, N 					
+			w_new(:,i) = w(:,i) - (dt / dx) * (F_num(:,i+1) - F_num(:,i))
+		end do 	
+  end select
+
+  
 
  end subroutine Update_variables
 
 ! -----------------------------
-subroutine roe_flux(N,i_cor,delta_star, gamma,w_L,w_R,F_L,F_R,F_num)
+subroutine Num_flux(N,delta_star, gamma,w_L,w_R,F_L,F_R,F_num)
 ! ======================================================================================= 
-! Subroutine pour calculer les flux numériques a l'aide d'un schéma de Roe
-! ======================================================================================= 
+! Subroutine pour calculer les flux numériques 
+! 1) a l'aide d'un schéma de Roe
+! 2) Schema HLL Davis
+! 3) Schema HLL Roe
+! 4) Schema HLLE
+! 5) Schema HLLC-ANRS (Adaptive Non-iterative Riemann Solver (ANRS))
+! ===================================================================================================================================================== 
+! Parametres globaux 
+use Module_parametres, only : i_sc
+
   ! Déclaration des variables
 	implicit none
-	integer,intent(in)								:: N									! Nombre de points
-    double precision,intent(in) 					:: gamma								! Constante adiabatique
-	double precision,dimension(:,:),intent(in) 		:: w_R,w_L								! États conservés (rho, rho*u, rho*E) a doite et a gauche de l'interface
-	double precision,dimension(:,:),intent(in)		:: F_L,F_R								! Flux
-	integer,intent(in)							    :: i_cor								! Activation de la correction
-	double precision,intent(in)					    :: delta_star						    ! Coefficient pour correction entropique de Harten
-	double precision, dimension(N+1)				:: rho_L,u_L,P_L,E_L			 		! Variables primitives a gauche
-	double precision, dimension(N+1)				:: rho_R,u_R,P_R,E_R			 		! Variables primitives a droite
-	double precision, dimension(N+1)				:: H_R,H_L								! Enthalpie totale
-	integer 										:: j									! Entier pour boucle
-    double precision 								:: u_moy, H_moy, c_moy,a				! Valeurs moyennes de Roe
-    double precision,dimension(3)					:: wdif									! Vecteur différences du vecteur état
-	double precision,dimension(3,3)					:: A_tilde								! Matrice A_tilde
-	double precision,dimension(:,:), intent(out) 	:: F_num 								! Flux num à retourner
-! =========================================================================================================================
+	integer,intent(in)								:: N									 				! Nombre de points
+    double precision,intent(in) 					:: gamma								 				! Constante adiabatique
+	double precision,dimension(:,:),intent(in) 		:: w_R,w_L								 				! États conservés (rho, rho*u, rho*E) a doite et a gauche de l'interface
+	double precision,dimension(:,:),intent(in)		:: F_L,F_R								 				! Flux
+	double precision,intent(in)					    :: delta_star						     				! Coefficient pour correction entropique de Harten
+	double precision, dimension(N+1)				:: rho_L,u_L,P_L,E_L			 		 				! Variables primitives a gauche
+	double precision, dimension(N+1)				:: rho_R,u_R,P_R,E_R			 		 				! Variables primitives a droite
+	double precision, dimension(N+1)				:: H_R,H_L								 				! Enthalpie totale a gauche et droite
+	integer 										:: j									 				! Entier pour boucle
+    double precision 								:: u_moy, H_moy, c_moy,a				 				! Valeurs moyennes de Roe
+	double precision 								:: S_R,S_L,a_R,a_L,eps,eta_1,eta_2,d,d_b 				! Double pour calcul de HLL
+	double precision 								:: rho_c,a_c,p_star,u_star,q_L,q_R,rho_starR			! Double pour calcul de HLLC
+	double precision 								:: var,var1,var2,var3,var4,var5,var6,var7,var8			! Double pour calcul de Q_star
+	double precision 								:: p_max,p_min,Q,z,PLR,p_0,AA_L,AA_R,B_L,B_R,g_L,g_R	! Double pour calcul de p_star
+	double precision 								:: den1,den2,den3,den4,s1,s2,S_star,E_star,rho_starL	! Double pour denominateur
+	double precision,dimension(:,:),allocatable     :: F_hll,F_starL,F_starR								! Local vector for computing HLL flux 
+    double precision,dimension(3)					:: wdif,num,Q_starL,Q_starR				 				! Vecteurs de 3 composants
+	double precision,dimension(3,3)					:: A_tilde								 				! Matrice A_tilde
+	double precision,dimension(:,:), intent(out) 	:: F_num 								 				! Flux num à retourner
+! =======================================================================================================================================================
 ! Fin des declarations 
-	
+
     ! Initialisation du flux Roe
     F_num = 0.0d0
 	
@@ -251,42 +310,369 @@ subroutine roe_flux(N,i_cor,delta_star, gamma,w_L,w_R,F_L,F_R,F_num)
 	
 	! Calcul de l'enthalpie totale a droite
 	H_R = (gamma/(gamma-1))*(P_R/rho_R)+0.5d0*u_R**2
+
+	select case(i_sc)
+		case(1)
+			! Roe SCHEME
+			
+			! Boucle sur les interfaces
+			do j = 1, N + 1
+				
+				! Calcul des moyennes de Roe
+				a = dsqrt(rho_R(j)/ rho_L(j))									! rapport des masses volumiques
+				u_moy = (a*u_R(j)+u_L(j))/(1.0d0+a)								! Moyenne de Roe de la vitesse matérielle
+				H_moy = (a*H_R(j)+H_L(j))/(1.0d0+a)								! Moyenne de Roe de l'enthalpie	
+				c_moy = dsqrt((gamma - 1.0d0) * (H_moy - 0.5d0 * u_moy**2))		! Moyenne de Roe de la vitesse de l'onde acoustique
+				
+				! Construction des matrices (voir excellent cours : P.S volpiani Roe's scheme)
+				call Construct_matrix(delta_star, gamma, u_moy, H_moy, c_moy, A_tilde)
+				
+				! Différence des états 
+				wdif(:) = w_R(:,j) - w_L(:,j) 
+				
+				! Roe : 0.5*[F(w_L)+F(w_R) - |A_tilde| * (W_R - W_L)]
+				F_num(:,j) = 0.5d0*(F_L(:,j) + F_R(:,j)) - 0.5d0*matmul(A_tilde, wdif(:))
+				
+			end do
+			
+		case(2)
+			! HLL-Davis SCHEME
+			
+			eps = 1.0d-8           ! tol for denom
+			allocate(F_hll(3,N+1)) ! local variable
+			F_hll = 0.0d0		   ! initialisation
+			
+			! Compute S_L and S_R
+			do j = 1, N + 1 			            ! Boucle sur les interfaces
+				a_L = dsqrt(gamma*P_L(j)/ rho_L(j)) ! Vitesse du son 
+				a_R = dsqrt(gamma*P_R(j)/ rho_R(j)) ! Vitesse du son 
+				S_L = min(u_L(j) - a_L, u_R(j) - a_R)
+				S_R = max(u_L(j) + a_L, u_R(j) + a_R)
+				
+				! State difference
+				wdif(:) = w_R(:,j) - w_L(:,j)
+				
+				! Compute the numerical flux
+				num(:) = S_R*F_L(:,j)-S_L*F_R(:,j)+S_R*S_L*wdif(:)
+				F_hll(:,j) = num(:) / sign(max(dabs(S_R - S_L), eps), S_R - S_L) ! sign(10,-5) renvoie -10
+				if(0.0d0 <= S_L) then
+					F_num(:,j) = F_L(:,j)
+				elseif(S_L < 0.0d0 .and. 0.0d0 < S_R) then
+					F_num(:,j) = F_hll(:,j)
+				elseif(0.0d0 >= S_R) then
+					F_num(:,j) = F_R(:,j)
+				endif
+			enddo
+			deallocate(F_hll) ! local variable
+		
+		case(3)
+			! HLL-Roe SCHEME
+			
+			eps = 1.0d-8           ! tol for denom
+			allocate(F_hll(3,N+1)) ! local variable
+			F_hll = 0.0d0		   ! initialisation
+
+			! Compute S_L and S_R
+			do j = 1, N + 1 													! Boucle sur les interfaces		            							
+				a = dsqrt(rho_R(j)/ rho_L(j))									! rapport des masses volumiques
+				u_moy = (a*u_R(j)+u_L(j))/(1.0d0+a)								! Moyenne de Roe de la vitesse matérielle
+				H_moy = (a*H_R(j)+H_L(j))/(1.0d0+a)								! Moyenne de Roe de l'enthalpie	
+				c_moy = dsqrt((gamma - 1.0d0) * (H_moy - 0.5d0 * u_moy**2))		! Moyenne de Roe de la vitesse de l'onde acoustique
+				S_L = u_moy - c_moy
+				S_R = u_moy + c_moy
+				
+				! State difference
+				wdif(:) = w_R(:,j) - w_L(:,j)
+				
+				! Compute the numerical flux
+				num(:) = S_R*F_L(:,j)-S_L*F_R(:,j)+S_R*S_L*wdif(:)
+				F_hll(:,j) = num(:) / sign(max(dabs(S_R - S_L), eps), S_R - S_L) ! sign(10,-5) renvoie -10
+				if(0.0d0 <= S_L) then
+					F_num(:,j) = F_L(:,j)
+				elseif(S_L < 0.0d0 .and. 0.0d0 < S_R) then
+					F_num(:,j) = F_hll(:,j)
+				elseif(0.0d0 >= S_R) then
+					F_num(:,j) = F_R(:,j)
+				endif
+			enddo
+			deallocate(F_hll) ! local variable
+			
+		case(4)
+			! HLLE SCHEME
+			
+			eps = 1.0d-8           ! tol for denom
+			allocate(F_hll(3,N+1)) ! local variable
+			F_hll = 0.0d0		   ! initialisation
+			
+			do j = 1, N + 1 			            ! Boucle sur les interfaces
+				! Compute velocities 
+				a = dsqrt(rho_R(j)/ rho_L(j))									
+				u_moy = (a*u_R(j)+u_L(j))/(1.0d0+a)	! Moyenne de Roe
+				a_L = dsqrt(gamma*P_L(j)/ rho_L(j)) ! Vitesse du son 
+				a_R = dsqrt(gamma*P_R(j)/ rho_R(j)) ! Vitesse du son
+				
+				! Compute d_barre : d_b
+				eta_1 = dsqrt(rho_L(j))+dsqrt(rho_R(j))
+				eta_2 = 0.5d0*((dsqrt(rho_L(j))*dsqrt(rho_R(j)))/eta_1**2)
+				d = dsqrt(rho_L(j))*a_L**2 + dsqrt(rho_R(j))*a_R**2
+				d_b = d/eta_1  + eta_2*(u_R(j) - u_L(j))**2
+				
+				! Compute S_L and S_R
+				S_L = u_moy - dsqrt(d_b)
+				S_R = u_moy + dsqrt(d_b)
+				
+				! State difference
+				wdif(:) = w_R(:,j) - w_L(:,j) 
+				
+				! Compute the numerical flux
+				num(:) = S_R*F_L(:,j)-S_L*F_R(:,j)+S_R*S_L*wdif(:)
+				F_hll(:,j) = num(:) / sign(max(dabs(S_R - S_L), eps), S_R - S_L) ! sign(10,-5) renvoie -10
+				if(0.0d0 <= S_L) then
+					F_num(:,j) = F_L(:,j)
+				elseif(S_L < 0.0d0 .and. 0.0d0 < S_R) then
+					F_num(:,j) = F_hll(:,j)
+				elseif(0.0d0 >= S_R) then
+					F_num(:,j) = F_R(:,j)
+				endif
+			enddo
+			deallocate(F_hll) ! local variable
+			
+		case(5)
+			! HLLC-ANRS SCHEME
+			
+			! dynamic memory allocation
+			allocate(F_starL(3,N+1),F_starR(3,N+1)) ! local vectors
+			F_starL = 0.0d0; F_starR = 0.0d0		! initialisation
+			
+			! Boucle sur les interfaces
+			do j = 1, N + 1
+              
+			   ! 1) sécuriser rho et P
+			    rho_L(j) = max(rho_L(j), 1.0d-10)
+				rho_R(j) = max(rho_R(j), 1.0d-10)
+				P_L(j)   = max(P_L(j), 1.0d-10)
+				P_R(j)   = max(P_R(j), 1.0d-10)
+				
+				! 2) vitesses du son
+				a_L = dsqrt(gamma*P_L(j)/ rho_L(j)) 
+				a_R = dsqrt(gamma*P_R(j)/ rho_R(j)) 
+				rho_c = 0.5d0*(rho_L(j)+rho_R(j))   ! rho chapeau
+				a_c = 0.5d0*(a_L + a_R)				! a chapeau
+				
+				! Compute p_star (PVRS)
+				p_star = 0.5d0*(P_L(j)+P_R(j))+0.5d0*(u_L(j)-u_R(j))*rho_c*a_c
+				p_star = max(0.0d0,p_star)
+				
+				! Choix du solver PVRS ou TRRS ou TSRS pour compute p_star and u_star
+				p_max = max(P_L(j),P_R(j))
+				p_min = min(P_L(j),P_R(j))
+				Q = p_max / p_min
+				if (Q <= 2.0d0 .and. p_min <= p_star .and. p_star <= p_max) then
+					! PVRS
+					!write(*,*)'PVRS'
+				else
+					if(p_star <= p_min) then
+						! TRRS : Two–Rarefaction Riemann solver (version optimisee)
+						!write(*,*)'TRRS'
+						z = (gamma-1)/(2.0d0*gamma)
+						PLR = (P_L(j)/P_R(j))**z
+						var5 = PLR*(u_L(j)/a_L)+u_R(j)/a_R + 2.0d0*(PLR-1.0d0)/(gamma-1.0d0)
+						var6 = PLR/a_L + 1.0d0/a_R
+						u_star = var5 / var6
+						var7 = 1.0d0 + ((gamma-1.0d0)/(2.0d0*a_L))*(u_L(j)-u_star)
+						var8 = 1.0d0 + ((gamma-1.0d0)/(2.0d0*a_R))*(u_star-u_R(j))
+						p_star = 0.5d0*(P_L(j)*var7**(1.0d0/z) + P_R(j)*var8**(1.0d0/z))
+					else 
+						! TSRS : Two–Shock Riemann Solver
+						!write(*,*)'TSRS'
+						p_0 = max(0.0d0,p_star)
+						AA_L = 2.0d0/((gamma+1.0d0)*rho_L(j))
+						AA_R = 2.0d0/((gamma+1.0d0)*rho_R(j))
+						B_L = ((gamma-1.0d0)/(gamma+1.0d0))*P_L(j)
+						B_R = ((gamma-1.0d0)/(gamma+1.0d0))*P_R(j)
+						g_L = dsqrt(AA_L/(p_0+B_L))
+						g_R = dsqrt(AA_R/(p_0+B_R))
+						var5 = g_L*P_L(j)+g_R*P_R(j)-(u_R(j)-u_L(j))
+						var6 = g_L + g_R
+						p_star = var5 / var6
+					endif
+				endif
+				
+				! Compute q_L
+				if(p_star <= P_L(j)) then
+					q_L = 1.0d0
+				else
+					var = 1+((gamma+1)/(2.0d0*gamma))*(p_star/P_L(j) - 1.0d0)
+					q_L = dsqrt(var)
+ 				endif
+				! Compute q_R
+				if(p_star <= P_R(j)) then
+					q_R = 1.0d0
+				else
+					var = 1+((gamma+1)/(2.0d0*gamma))*(p_star/P_R(j) - 1.0d0)
+					q_R = dsqrt(var)
+ 				endif
+				
+				! Compute S_L, S_star and S_R and S_star 
+				S_L = u_L(j)-a_L*q_L
+				S_R = u_R(j)+a_R*q_R
+				
+				! 4) calcul S_star 
+				s1 = S_L - u_L(j)
+				s2 = S_R - u_R(j)
+				den1 = rho_L(j)*s1 - rho_R(j)*s2
+				
+				if (dabs(den1) < 1.d-12) then
+					S_star = 0.d0
+				else
+					S_star = ( P_R(j) - P_L(j) + rho_L(j)*s1*u_L(j) - rho_R(j)*s2*u_R(j) ) / den1
+				endif
+				
+				! 5) états étoile conservatifs
+				! gauche
+				if (dabs(S_L - S_star) < 1.d-12) then
+					Q_starL(:) = w_L(:,j)
+				else
+					rho_starL = rho_L(j)*(S_L - u_L(j)) / (S_L - S_star)
+					u_star = S_star
+					E_star = (S_L - u_L(j))*rho_L(j)*(w_L(3,j)/rho_L(j)+(S_star+P_L(j)/(rho_L(j)*(S_L-u_L(j))))*(S_star-u_L(j)))/(S_L-S_star)
+					Q_starL(1) = rho_starL
+					Q_starL(2) = rho_starL*u_star
+					Q_starL(3) = E_star
+				endif
+				
+				! droite
+				if (dabs(S_R - S_star) < 1.d-12) then
+					Q_starR(:) = w_R(:,j)
+				else
+					rho_starR = rho_R(j)*(S_R - u_R(j)) / (S_R - S_star)
+					u_star = S_star
+					E_star = (S_R-u_R(j))*rho_R(j)*(w_R(3,j)/rho_R(j)+(S_star+P_R(j)/(rho_R(j)*(S_R-u_R(j))))*(S_star-u_R(j)))/(S_R-S_star)
+					Q_starR(1) = rho_starR
+					Q_starR(2) = rho_starR*u_star
+					Q_starR(3) = E_star
+				endif
+				
+				! 6) flux HLLC final
+				if (0.0d0 <= S_L) then
+					F_num(:,j) = F_L(:,j)
+				elseif (S_L <= 0.0d0 .and. 0.0d0 <= S_star) then
+					F_num(:,j) = F_L(:,j) + S_L*(Q_starL(:) - w_L(:,j))
+				elseif (S_star <= 0.0d0 .and. 0.0d0 <= S_R) then
+					F_num(:,j) = F_R(:,j) + S_R*(Q_starR(:) - w_R(:,j))
+				else
+					F_num(:,j) = F_R(:,j)
+				endif
+				
+			enddo
+			
+			
+			! memory release
+			deallocate(F_starL,F_starR) ! local vectors
+			
+		case(6)
+			! =======================
+			! HLLC minimal 
+			! =======================
+
+			! Boucle sur les interfaces
+			do j = 1, N+1
+
+				! 1) sécuriser rho et P
+				rho_L(j) = max(rho_L(j), 1.d-12)
+				rho_R(j) = max(rho_R(j), 1.d-12)
+				P_L(j)   = max(P_L(j), 1.d-12)
+				P_R(j)   = max(P_R(j), 1.d-12)
+
+				! 2) vitesses du son
+				a_L = dsqrt(gamma*P_L(j)/rho_L(j))
+				a_R = dsqrt(gamma*P_R(j)/rho_R(j))
+				
+				! 2) vitesses du son de Roe
+				a = dsqrt(rho_R(j)/ rho_L(j))									! rapport des masses volumiques
+				u_moy = (a*u_R(j)+u_L(j))/(1.0d0+a)								! Moyenne de Roe de la vitesse matérielle
+				H_moy = (a*H_R(j)+H_L(j))/(1.0d0+a)								! Moyenne de Roe de l'enthalpie	
+				c_moy = dsqrt((gamma - 1.0d0) * (H_moy - 0.5d0 * u_moy**2))		! Moyenne de Roe de la vitesse de l'onde acoustique
+				
+				! 3) vitesses d’onde HLLC 
+				S_L = min(u_L(j) - a_L, u_moy - c_moy)
+				S_R = max(u_R(j) + a_R, u_moy + c_moy)
+
+				! 4) calcul S_star 
+				s1 = S_L - u_L(j)
+				s2 = S_R - u_R(j)
+				den1 = rho_L(j)*s1 - rho_R(j)*s2
+
+				if (abs(den1) < 1.d-12) then
+					S_star = 0.d0
+				else
+					S_star = ( P_R(j) - P_L(j) + rho_L(j)*s1*u_L(j) - rho_R(j)*s2*u_R(j) ) / den1
+				endif
+
+				! 5) états étoile conservatifs
+				! gauche
+				if (abs(S_L - S_star) < 1.d-12) then
+					Q_starL(:) = w_L(:,j)
+				else
+					rho_starL = rho_L(j)*(S_L - u_L(j)) / (S_L - S_star)
+					u_star = S_star
+					E_star = (S_L - u_L(j))*rho_L(j)*(w_L(3,j)/rho_L(j)+(S_star+P_L(j)/(rho_L(j)*(S_L-u_L(j))))*(S_star-u_L(j)))/(S_L-S_star)
+					Q_starL(1) = rho_starL
+					Q_starL(2) = rho_starL*u_star
+					Q_starL(3) = E_star
+				endif
+
+				! droite
+				if (abs(S_R - S_star) < 1.d-12) then
+					Q_starR(:) = w_R(:,j)
+				else
+					rho_starR = rho_R(j)*(S_R - u_R(j)) / (S_R - S_star)
+					u_star = S_star
+					E_star = (S_R-u_R(j))*rho_R(j)*(w_R(3,j)/rho_R(j)+(S_star+P_R(j)/(rho_R(j)*(S_R-u_R(j))))*(S_star-u_R(j)))/(S_R-S_star)
+					Q_starR(1) = rho_starR
+					Q_starR(2) = rho_starR*u_star
+					Q_starR(3) = E_star
+				endif
+				
+				! 6) flux HLLC final
+				if (0.0d0 <= S_L) then
+					F_num(:,j) = F_L(:,j)
+				elseif (S_L <= 0.0d0 .and. 0.0d0 <= S_star) then
+					F_num(:,j) = F_L(:,j) + S_L*(Q_starL(:) - w_L(:,j))
+				elseif (S_star <= 0.0d0 .and. 0.0d0 <= S_R) then
+					F_num(:,j) = F_R(:,j) + S_R*(Q_starR(:) - w_R(:,j))
+				else
+					F_num(:,j) = F_R(:,j)
+				endif
+
+			enddo
+			
+		
+	end select
 	
-    ! Boucle sur les interfaces
-    do j = 1, N + 1
-		
-		! Calcul des moyennes de Roe
-		a = dsqrt(rho_R(j)/ rho_L(j))									! rapport des masses volumiques
-		u_moy = (u_R(j)+a*u_L(j))/(1.0d0+a)								! Moyenne de Roe de la vitesse matérielle
-		H_moy = (a*H_R(j)+H_L(j))/(1.0d0+a)								! Moyenne de Roe de l'enthalpie	
-		c_moy = dsqrt((gamma - 1.0d0) * (H_moy - 0.5d0 * u_moy**2))		! Moyenne de Roe de la vitesse de l'onde acoustique
-		
-		! Construction des matrices (voir excellent cours : P.S volpiani Roe's scheme)
-		call Construct_matrix(i_cor, delta_star, gamma, u_moy, H_moy, c_moy, A_tilde)
-		
-		! Différence des états 
-		wdif(:) = w_R(:,j) - w_L(:,j) 
-		
-        ! Roe : 0.5*[F(w_L)+F(w_R) - |A_tilde| * (W_R - W_L)]
-		F_num(:,j) = 0.5d0*(F_L(:,j) + F_R(:,j)) - 0.5d0*matmul(A_tilde, wdif(:))
-		
-    end do
-	
-	
-end subroutine roe_flux
+end subroutine Num_flux
  
  ! ----------------------------- 
  
-  subroutine Boundary_conditions(N,gamma,i_BC,w_new)
+  subroutine Boundary_conditions(N,gamma,w_new)
 ! ================================================
 ! Calcul des BCs
 ! ================================================
+! Parametres globaux 
+use Module_parametres, only : i_BC
+
   implicit none
-  integer,intent(in) 							  :: N, i_BC		! grille de points, parametre de choix de bc
+  integer,intent(in) 							  :: N				! grille de points
   double precision,intent(in) 					  :: gamma			! paramètre d'entrée de la subroutine
   double precision, dimension(:,-1:),intent(inout):: w_new 			! Variables des lois de conservations au temps t{n+1}
 ! =========================================================================================================================
-! Fin des declarations  
+! Fin des declarations 
+
+ ! Validate input
+  if (i_BC < 1 .or. i_BC > 2) then
+     print *, "Error: Invalid i_BC value. Must be between 1 and 2."
+     stop
+  end if 
 	
   select case(i_BC)
 	case(1)
@@ -389,13 +775,14 @@ subroutine Convert_conservative_to_primal(N,gamma,w_new,rho,u,P,E)
  
  ! -----------------------------
  
-subroutine Construct_matrix(i_cor, delta_star, gamma, u_moy, H_moy, c_moy, A_tilde)
+subroutine Construct_matrix(delta_star, gamma, u_moy, H_moy, c_moy, A_tilde)
 ! =====================================================================================================
 ! Subroutine pour calculer les composantes des matrices A_tilde = P_tilde * Delta_tilde * P_tilde ^-1
 ! ======================================================================================================
+! Parametres globaux 
+use Module_parametres, only : i_cor
 	implicit none
     double precision,intent(in)	 				   :: u_moy, H_moy, c_moy, gamma        ! Valeurs moyennes de Roe
-	integer,intent(in)							   :: i_cor								! Activation de la correction
 	double precision,intent(in)					   :: delta_star						! Coefficient pour correction entropique de Harten
 	double precision							   :: alph1, alph2, delta				! Variables locales
 	double precision							   :: lambda_1,lambda_2,lambda_3		! Variables locales
@@ -496,7 +883,7 @@ end subroutine Construct_matrix
 
  ! -----------------------------
  
- subroutine Interp(N,i_fct,i_ord,beta,b,phi,w,w_L,w_R)
+ subroutine Interp(N,beta,b,phi,w,w_L,w_R)
 ! ======================================================================================
 ! Calcul les valeurs des variables aux interfaces
 ! avec reconstruction MUSCL : 
@@ -508,12 +895,12 @@ end subroutine Construct_matrix
 !       i-1/2     i+1/2      i+3/2      i+5/2
 ! Pour chaque interface on construit w_L et w_R qui sont ensuite donné au schéma de Roe
 ! ======================================================================================
+! Parametres globaux 
+use Module_parametres, only : i_ord
   implicit none
   integer,intent(in) 							  :: N					 ! grille de points
   double precision, intent(in)					  :: beta				 ! Coefficient pour limiter Chakravarthy
   double precision, dimension(:,-1:),intent(in)   :: w 				     ! Composantes du vecteur w au temps t{n}
-  integer,intent(in) 			 				  :: i_fct		         ! Define what limiter_function to use
-  integer,intent(in) 			 				  :: i_ord		         ! Define order of spatial precision
   double precision,intent(in)					  :: b,phi				 ! Parametre de compression, Parametre ordre de reconstruction
   double precision							      :: eps,c1,c2			 ! Tolerance to avoid division by 0, coefficients
   integer										  :: i,j				 ! loop variables 
@@ -524,6 +911,12 @@ end subroutine Construct_matrix
   double precision, dimension(:,:),intent(inout)  :: w_L,w_R 		     ! Composantes du vecteur w au temps t{n+1}
 ! =========================================================================================================================
 ! Fin des declarations 
+
+   ! Validate input
+  if (i_ord < 1 .or. i_ord > 2) then
+     print *, "Error: Invalid i_ord value. Must be between 1 and 2."
+     stop
+  end if
    
     select case(i_ord)
 	case(1)
@@ -565,10 +958,10 @@ end subroutine Construct_matrix
 			r3(:,j) = dif(:,j)/(b*dif(:,j+1)+eps)
 			r4(:,j) = dif(:,j+1)/(b*dif(:,j)+eps)
 			! Compute limiter
-			call limiter_function(i_fct,r1(:,j),beta,psi1)
-			call limiter_function(i_fct,r2(:,j),beta,psi2)
-			call limiter_function(i_fct,r3(:,j),beta,psi3)
-			call limiter_function(i_fct,r4(:,j),beta,psi4)
+			call limiter_function(r1(:,j),beta,psi1)
+			call limiter_function(r2(:,j),beta,psi2)
+			call limiter_function(r3(:,j),beta,psi3)
+			call limiter_function(r4(:,j),beta,psi4)
 			l1(:,j) = (b*dif(:,j))*psi1(:)
 			l2(:,j) = (b*dif(:,j-1))*psi2(:)
 			l3(:,j) = (b*dif(:,j+1))*psi3(:)
@@ -589,12 +982,14 @@ end subroutine Construct_matrix
 
 ! -----------------------------
 
-subroutine limiter_function(i_fct,r,beta,psi)
+subroutine limiter_function(r,beta,psi)
 ! ================================================
 ! Limiteurs 
 ! ================================================
+! Parametres globaux 
+use Module_parametres, only : i_fct
+
   implicit none
-  integer, INTENT(IN) 		   		            :: i_fct         ! define what limiter_function to use
   double precision,INTENT(IN) 					:: beta    	     ! Parameter for Chakravarthy limiter
   double precision,dimension(3),INTENT(IN) 		:: r    		 ! Vector of the slope
   double precision 			   		            :: ii,jj,kk,eps	 ! Local values
@@ -669,7 +1064,7 @@ do i = 1, N
     c_sound = dsqrt(gamma * P(i) / rho(i))
     
     ! Nombre de Mach : M = |u| / c
-    Ma(i) = dabs(u(i)) / c_sound
+	Ma(i) = u(i) / c_sound
     
     ! Entropie (forme spécifique s = P / rho^gamma)
     s(i) = P(i) / (rho(i)**gamma)

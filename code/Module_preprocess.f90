@@ -7,21 +7,22 @@ contains
 ! ----------------------------------------------------------------------
 
 
-subroutine Conditions_initiales(i_init,gamma,rho_L,u_L,P_L,rho_R,u_R,P_R)
+subroutine Conditions_initiales(gamma,rho_L,u_L,P_L,rho_R,u_R,P_R)
 ! ================================================
 ! Calcul des conditions initiales (Riemann problem)
 ! différentes configurations possibles
 ! ================================================
+! Parametres globaux 
+use Module_parametres, only : i_init
   implicit none
-  integer,intent(in) 				 :: i_init			 				    ! Entier pour choisir condition
   double precision,intent(in)		 :: gamma								! Constante adiabatique
   double precision,intent(out)		 :: rho_L,u_L,P_L,rho_R,u_R,P_R			! Valeurs initiales
 	
 ! Choix de la cdt initiale voulue : 1 : Sod subsonique, 2 : Sod Superso, 3 : vide, 4 : glissement, 5 : choc a Mach 3
 
 ! Validate input
-  if (i_init < 1 .or. i_init > 5) then
-     print *, "Error: Invalid i_init value. Must be between 1 and 5."
+  if (i_init < 1 .or. i_init > 7) then
+     print *, "Error: Invalid i_init value. Must be between 1 and 7."
      stop
   end if
 	
@@ -46,6 +47,14 @@ select case(i_init)
 		! Choc stationnaire à Mach 3 
 		rho_L = 1.0d0;        u_L = 3.5496478d0;   p_L = 1.0d0 		   ! À gauche
 		rho_R = 3.85714285d0; u_R = 0.920279072d0; p_R = 10.33333333d0 ! À droite
+	case(6)
+		! Blast Wave (Forte pression)
+		rho_L = 1.0d0;  u_L = 0.0d0;   p_L = 1.0d3		   		   ! À gauche
+		rho_R = 1.0d0;  u_R = 0.0d0;   p_R = 1.0d-2 			   ! À droite
+	case(7)
+		! Collision de chocs 
+		rho_L = 5.99924d0; u_L = 19.5975d0;  p_L = 460.894d0 		! À gauche
+		rho_R = 5.99242d0; u_R = -6.19633d0; p_R = 46.0950d0        ! À droite
 end select
 
 

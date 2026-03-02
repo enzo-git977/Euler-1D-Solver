@@ -1,15 +1,16 @@
 COMPIL = gfortran
 # Mode le plus sur (voir toute erreur et warning) A FAIRE AU DEBUT POUR ETRE SUR
-#CFLAGS = -g -O0 -fcheck=all -fbounds-check -Wall -fbacktrace
+# CFLAGS = -g -O0 -fcheck=all -fbounds-check -Wall -fbacktrace
+ CFLAGS = -g -O0 -fcheck=all -fbounds-check -fbacktrace
 # Mode Performance (bcp plus rapide)
 # CFLAGS = -O3
 # Meilleur compromis 
-CFLAGS = -O2
+#CFLAGS = -O2
 LFLAGS = -o
 # LFLAGS = -O2 -L$(HOME)
 COPTS = $(CFLAGS)
 LOPTS = $(LFLAGS)
-OBJS = Module_sortie.o Module_lecture.o Module_preprocess.o Module_operateur.o main.o
+OBJS = Module_parametres.o Module_sortie.o Module_lecture.o Module_preprocess.o Module_operateur.o main.o
 PROG = solve
 
 .SUFFIXES: .f90 .o

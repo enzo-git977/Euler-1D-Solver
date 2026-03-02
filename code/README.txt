@@ -1,13 +1,13 @@
 -- INSTRUCTIONS --------------------------------------------------------
+Solution exacte : 
+ouvrir le code dans data_final et selectionner le cas voulu
+run : python3 data_final/exact_Sod.py
 
-COMPILE :
-make
+Pour le solveur 
+Ouvrir menu et selectionner les donnees d'entree
+puis pour run : ./solve
 
-RUN / 
-./solve
-
-CLEAN DATA : 
-make clean
+IMPORTANT : d'abord lancer solution exacte puis solveur (avec meme cas init)
 
 -- GENERAL INFO ABOUT THE CODE  --------------------------------------------------------
 
@@ -25,6 +25,7 @@ Phi = -1 (fully upwind), which is the most stable choice for supersonic flows, P
 
 Parameter $b$ (Compression): This factor multiplies the neighboring slopes. A value near 1 ensures stability, 
 while values closer to 2 compress shocks to be very sharp, though they may introduce small dispersive oscillations behind the front.
+Sum-up : low beta : very diffusive, more stable; high beta more compression, sharp front.
 
 Limiter : 
 In smooth regions, ϕ -> 1 which gives second-order accuracy
