@@ -6,7 +6,7 @@ contains
 ! METHODES
 ! ----------------------------------------------------------------------
 
-subroutine read_parameters(nfich,N,L,gamma,cfl,Tf,delta_star,beta,b,phi)
+subroutine read_parameters(nfich)
 !=====================================================================
 !  Fonction : Lecture du fichier menu pour les parametres de calcul
 !=====================================================================
@@ -15,15 +15,7 @@ use Module_parametres
 
 ! Déclarations
   implicit none
-  integer,          intent(in)   :: nfich			   ! Numero du fichier pour ouverture
-  integer,          intent(out)  :: N              	   ! Nombre de points de grille 
-  double precision, intent(out)	 :: delta_star		   ! Coefficient pour correction entropique de Harten
-  double precision, intent(out)	 :: L                  ! Longueur du domaine en metre
-  double precision, intent(out)	 :: gamma   		   ! Constante adiabatique
-  double precision, intent(out)	 :: CFL				   ! Condition CFL
-  double precision, intent(out)	 :: Tf      		   ! Temps final en secondes
-  double precision, intent(out)	 :: beta     		   ! Coefficient pour limiter Chakravarthy
-  double precision, intent(out)	 :: b,phi			   ! Parametre de compression, Parametre ordre de reconstruction
+  integer, intent(in) :: nfich ! Numero du fichier pour ouverture
 ! =========================================================================================================================
 ! Fin des declarations
   
@@ -75,24 +67,13 @@ end subroutine read_parameters
 ! -----------------------------
 
 
-subroutine display_parameters(N,L,gamma,cfl,Tf,delta_star,beta,b,phi)
+subroutine display_parameters()
 
 !=====================================================================
 !  Fonction : Affichage des parametres de calcul selectionnes
 !=====================================================================
 ! Parametres globaux
 use Module_parametres
-
-! Déclarations
-  implicit none
-  integer,          intent(in)   :: N              	   ! Nombre de points de grille 
-  double precision, intent(in)	 :: delta_star		   ! Coefficient pour correction entropique de Harten
-  double precision, intent(in)	 :: L                  ! Longueur du domaine en metre
-  double precision, intent(in)	 :: gamma   		   ! Constante adiabatique
-  double precision, intent(in)	 :: CFL				   ! Condition CFL
-  double precision, intent(in)	 :: Tf      		   ! Temps final en secondes
-  double precision, intent(in)	 :: beta     		   ! Coefficient pour limiter Chakravarthy
-  double precision, intent(out)	 :: b,phi			   ! Parametre de compression, Parametre ordre de reconstruction
  ! =========================================================================================================================
 ! Fin des declarations 
   

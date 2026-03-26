@@ -233,7 +233,7 @@ def riesolv(rol,ul,pl,ror,ur,pr,xl,xr,mprof,gamma,timeout,solution):
 	
 # --- CONFIGURATION DU CAS ---
 time = 0.20 # par defaut
-cas = 6
+cas = 7
 gamma = 1.4
 R = 287.
 xdeb = 0.0

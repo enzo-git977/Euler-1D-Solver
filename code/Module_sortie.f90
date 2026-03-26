@@ -33,17 +33,22 @@ end subroutine ecrit_mat
 
 ! ----------------------------------------------------------------------
 
-subroutine write_solution_initial_time(N,dx,gamma,w)
+subroutine write_solution_initial_time(dx,w)
 !=====================================================================
 ! Ecris la solution au temps t=0 pour ensuite la plot avec GNUPLOT
 !=====================================================================
+! Parametres globaux 
+use Module_parametres, only : N, gamma
+
+ ! Déclaration des variables
 	implicit none
-	integer,intent(in) 					          :: N			     		! grille de points
-	double precision,intent(in) 		          :: dx,gamma				! parametres d'entrée de la subroutine
+	double precision,intent(in) 		          :: dx						! parametres d'entrée de la subroutine
 	double precision, dimension(:,-1:),intent(in) :: w 					    ! Variables des lois de conservations 
     integer 			 				          :: i 			 	 	    ! entier pour calcul de boucles
 	double precision							  :: c_sound			    ! Vitesse du son
     double precision, dimension(N)		          :: rho,u,P,E,Ma,s,Temp	! Caractéristiques physique du fluide
+! =========================================================================================================================
+! Fin des declarations 	
 	
 	! Conservative to primal conversion
 	do i=1,N
@@ -73,12 +78,15 @@ end subroutine write_solution_initial_time
 ! ----------------------------------------------------------------------
 
 
-subroutine save_results(N,Save_choice,dx,Tf,rho,u,P,E,Ma,s,Temp)
+subroutine save_results(Save_choice,dx,Tf,rho,u,P,E,Ma,s,Temp)
 ! ================================================
 ! write results in a file in the data folder
 ! ================================================
+! Parametres globaux 
+use Module_parametres, only : N
+
+ ! Déclaration des variables
   implicit none
-  integer,intent(in) 							:: N			 					! grille de points
   double precision, dimension(-1:),intent(in)   :: rho, u, P, E						! Caractéristiques physique du fluide
   double precision, dimension(:),intent(in)     :: Ma, s, Temp					   	! Caractéristiques physique du fluide
   double precision,intent(in) 					:: dx,Tf							! parametres d'entrée de la subroutine
@@ -86,7 +94,8 @@ subroutine save_results(N,Save_choice,dx,Tf,rho,u,P,E,Ma,s,Temp)
   character(len=10) 							:: time_str							! char for time
   character(len=50) 							:: filename							! name of the file
   integer 			 							:: i,ierr 			 				! entier pour calcul de boucles
-  
+! =========================================================================================================================
+! Fin des declarations 	  
 	
 	! Convert time into character
 	write(time_str, '(F5.3)') Tf

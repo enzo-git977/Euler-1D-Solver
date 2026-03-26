@@ -25,13 +25,13 @@ MENU DU CODE EULER1D
 1.4D0	
 
 ! Condition CFL	     		 cfl	 				[-]   INDICATION : keep cfl <= 0.5 pour avoid oscillations
-0.5D0	
+0.99D0	
 
 ! Temps final 				 Tf	    				[s]	
-0.012d0	
+0.035d0	
 
 ! Cdts initiales     1 : Sod subsonique, 2 : Sod Superso, 3 : vide, 4 : glissement, 5 : choc à Mach 3, 6 : Blast wave (mettre t=0.012), 7: Collision de chocs (t=0.035)	
-6	
+7	
 
 ! BOUNDARY Cdts    1 : Reflective wall, 2 : Transmissive wall 	
 2	

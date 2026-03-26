@@ -7,15 +7,16 @@ contains
 ! ----------------------------------------------------------------------
 
 
-subroutine Conditions_initiales(gamma,rho_L,u_L,P_L,rho_R,u_R,P_R)
+subroutine Conditions_initiales(rho_L,u_L,P_L,rho_R,u_R,P_R)
 ! ================================================
 ! Calcul des conditions initiales (Riemann problem)
 ! différentes configurations possibles
 ! ================================================
 ! Parametres globaux 
-use Module_parametres, only : i_init
+use Module_parametres, only : i_init, gamma
+
+! Déclarations
   implicit none
-  double precision,intent(in)		 :: gamma								! Constante adiabatique
   double precision,intent(out)		 :: rho_L,u_L,P_L,rho_R,u_R,P_R			! Valeurs initiales
 	
 ! Choix de la cdt initiale voulue : 1 : Sod subsonique, 2 : Sod Superso, 3 : vide, 4 : glissement, 5 : choc a Mach 3
@@ -63,12 +64,15 @@ end select
 
  ! -----------------------------
  
- subroutine mesh(N,dx,x_i)
+ subroutine mesh(dx,x_i)
 ! ================================================
 ! Creation du maillage VF cell-centered
 ! ================================================
+! Parametres globaux 
+use Module_parametres, only : i_init, N
+
+! Déclarations
   implicit none
-  integer,intent(in) 							  :: N			 ! grille de points
   double precision,intent(in) 					  :: dx			 ! pas de discretisation
   integer 			 							  :: i 			 ! entier pour calcul de boucles
   double precision,dimension(:),intent(out)		  :: x_i		 ! maillage
@@ -82,14 +86,17 @@ end select
  
  ! -----------------------------
  
-subroutine Initialisation_variables(N,gamma,L,dx,rho_L,u_L,P_L,rho_R,u_R,P_R,x_i,w)
+subroutine Initialisation_variables(dx,rho_L,u_L,P_L,rho_R,u_R,P_R,x_i,w)
 ! ================================================
 ! Initialise les composantes du vecteur w
 ! w1 = rho, w2 = rho*u et w3 = rho*E
 ! ================================================
+! Parametres globaux 
+use Module_parametres, only : i_init, N, gamma, L
+
+! Déclarations
   implicit none
-  integer,intent(in) 							  :: N			 								! grille de points
-  double precision,intent(in) 					  :: rho_L,u_L,P_L,rho_R,u_R,P_R,L,dx,gamma		! parametres d'entrée de la subroutine
+  double precision,intent(in) 					  :: rho_L,u_L,P_L,rho_R,u_R,P_R,dx				! parametres d'entrée de la subroutine
   double precision,dimension(:),intent(in)		  :: x_i										! mailles
   integer 			 							  :: i 			 								! entier pour calcul de boucles
   double precision								  :: x_c									    ! réel local
